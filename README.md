@@ -62,6 +62,101 @@ Date tested:
 
 ---
 
+## Installing on the Steam Deck
+
+There is no store listing — this installs as a local/developer plugin. Do the
+build on the Deck itself: the sensor service links against hidapi and the
+overlay against GLFW/GLEW/X11, and matching those to whatever the Deck's
+current SteamOS image actually ships is safer than cross-building elsewhere
+and hoping the versions line up.
+
+**1. Turn on Developer Mode in Decky.** You need Decky Loader already
+installed. Open the Quick Access Menu → the Decky (plug) icon → the gear/
+Settings tab → toggle **Developer Mode**. This is what lets Decky load a
+plugin that isn't from its public store.
+
+**2. Switch to Desktop Mode** (Steam button → Power → Switch to Desktop) and
+open a terminal (Konsole, on the taskbar).
+
+**3. Set a password if you haven't**, so `sudo` works:
+```bash
+passwd
+```
+
+**4. Get the code onto the Deck.** Easiest is `git clone` if you have network
+access configured for it; otherwise copy the repo over with `scp` from another
+machine, or a USB drive.
+```bash
+git clone <this-repo-url> ~/motion-dots
+cd ~/motion-dots
+```
+
+**5. Disable the read-only filesystem** so you can install build dependencies:
+```bash
+sudo steamos-readonly disable
+```
+
+**6. Install build dependencies.** SteamOS uses pacman. `base-devel`, `cmake`,
+and `git` are usually already present (Decky's own dev environment needs
+them); the rest almost certainly are not:
+```bash
+sudo pacman -Sy --needed cmake hidapi glfw-x11 glew libx11 libxfixes nodejs pnpm
+```
+If `pacman-key` complains about an uninitialized keyring (common on a fresh
+SteamOS install), run `sudo pacman-key --init && sudo pacman-key --populate
+archlinux` first.
+
+**7. Re-enable the read-only filesystem** now that packages are installed —
+there's no reason to leave the root filesystem writable:
+```bash
+sudo steamos-readonly enable
+```
+
+**8. Build both native binaries and the QAM panel:**
+```bash
+./build.sh
+pnpm install
+pnpm run build
+```
+`./build.sh` stages `motiondots-sensord` and `motiondots-overlay` into `bin/`;
+`pnpm run build` produces `dist/index.js`. Both are gitignored, so this step
+can't be skipped by just pulling the repo.
+
+**9. Install the plugin into Decky's plugin directory.** Decky loads whatever
+sits in `~/homebrew/plugins/<name>/`, so copy the built plugin there — not the
+whole repo with its `node_modules` and build intermediates:
+```bash
+mkdir -p ~/homebrew/plugins/motion-dots
+cp -r main.py plugin.json py_modules bin dist ~/homebrew/plugins/motion-dots/
+chmod +x ~/homebrew/plugins/motion-dots/bin/*
+```
+
+**10. Restart Decky's plugin loader** so it picks up the new plugin: Quick
+Access Menu → Decky icon → Settings → **Reload Plugins** (or restart the Deck
+if that option isn't there in your Decky version).
+
+**11. Switch back to Gaming Mode** and open the Quick Access Menu — Motion
+Dots should now be listed alongside your other Decky plugins.
+
+**12. Run the gamescope check before doing anything else.** This is the
+project's one real unknown (see the status table above) and it's a single
+command, with a game running:
+```bash
+DISPLAY=:0 ~/homebrew/plugins/motion-dots/bin/motiondots-overlay --self-test
+```
+If a ring of dots appears over the game, everything downstream of it — the
+plugin toggle, the sensor pipeline, the tuning — is just software. If it
+doesn't, don't chase the plugin further until gamescope compositing is sorted
+out; see "The gamescope risk is still open" above.
+
+**Updating later:** `git pull`, re-run steps 8–10. You don't need to redo the
+readonly toggle or dependency install unless a new dependency gets added.
+
+**Uninstalling:** turn the QAM toggle off first (so nothing is left running),
+then `rm -rf ~/homebrew/plugins/motion-dots` and reload plugins again.
+
+---
+
 ## How it works
 
 Three processes, started and stopped together by the plugin:
@@ -119,8 +214,11 @@ in `py_modules/`, which Decky puts on `sys.path`.
 
 ## Building
 
-Needs `cmake`, a C++20 compiler, `hidapi`, `glfw3`, `GLEW`, `X11`
-(and `XFixes`, optional), plus `node` and `pnpm`.
+For the full on-Deck walkthrough — dependencies, `sudo steamos-readonly`,
+where to copy the built plugin, enabling it in Decky — see "Installing on the
+Steam Deck" above. The build itself, on any machine with the right
+dependencies installed (`cmake`, a C++20 compiler, `hidapi`, `glfw3`, `GLEW`,
+`X11`, optionally `XFixes`, plus `node` and `pnpm`):
 
 ```bash
 ./build.sh          # both native binaries -> bin/
@@ -128,9 +226,8 @@ pnpm install
 pnpm run build      # the QAM panel -> dist/
 ```
 
-Then copy the plugin to `~/homebrew/plugins/motion-dots` on the Deck and restart
-Decky. `bin/` and `dist/` must be present; they are gitignored, so build before
-copying.
+`bin/` and `dist/` are gitignored, so this has to be run before the plugin is
+copied anywhere.
 
 ## Testing
 
