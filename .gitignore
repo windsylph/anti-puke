@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+out/
+bin/
+dist/
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS
+.DS_Store
+*.swp

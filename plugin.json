@@ -1,0 +1,11 @@
+{
+  "name": "Motion Dots",
+  "author": "windsylph",
+  "api_version": 1,
+  "flags": ["root"],
+  "publish": {
+    "tags": ["overlay", "gyroscope", "motion", "visual"],
+    "description": "A ring of small white dots around the screen edge, overlaid on your game, that shift with the Deck's tilt and motion.",
+    "image": ""
+  }
+}
